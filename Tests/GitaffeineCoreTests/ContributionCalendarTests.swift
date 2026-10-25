@@ -60,3 +60,12 @@ private func date(_ text: String, _ calendar: Calendar) -> Date {
     #expect(ContributionCalendar.Share(activeDays: 112, shownDays: 112).percent == 100)
     #expect(ContributionCalendar.Share(activeDays: 0, shownDays: 0).percent == 0)
 }
+
+@Test func levelThresholdsSplitActiveDaysIntoThirds() {
+    let counts = ["a": 10, "b": 20, "c": 30, "d": 40, "e": 50, "f": 60, "g": 0]
+    #expect(ContributionCalendar.levelThresholds(for: counts) == [1, 30, 50])
+}
+
+@Test func levelThresholdsWithoutActivityAreTheDefaults() {
+    #expect(ContributionCalendar.levelThresholds(for: [:]) == [1, 2, 3])
+}

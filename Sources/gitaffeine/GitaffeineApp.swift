@@ -4,11 +4,13 @@ import SwiftUI
 @main
 struct GitaffeineApp: App {
     @State private var contributions = ContributionStore()
+    @State private var codex = CodexStore()
 
     var body: some Scene {
         MenuBarExtra {
-            PopupView(store: contributions)
+            PopupView(store: contributions, codex: codex)
                 .task { await contributions.refresh() }
+                .task { await codex.refresh() }
         } label: {
             Image(nsImage: PillIcon.image)
         }
@@ -22,26 +24,35 @@ struct GitaffeineApp: App {
 
 struct PopupView: View {
     let store: ContributionStore
+    let codex: CodexStore
     @Environment(\.openSettings) private var openSettings
+    @State private var tab = Tab.git
+
+    enum Tab: CaseIterable {
+        case git, codex, claude, grok
+
+        var symbol: String {
+            switch self {
+            case .git: "arrow.triangle.branch"
+            case .codex: "terminal"
+            case .claude: "sparkle"
+            case .grok: "bolt"
+            }
+        }
+    }
 
     var body: some View {
-        let today = Date()
-        let calendar = Calendar.current
-        let weeks = ContributionCalendar.weeks(endingAt: today, count: ContributionStore.weekCount, calendar: calendar)
-        let share = ContributionCalendar.activeShare(of: weeks, counts: store.counts, today: today, calendar: calendar)
-
         VStack(alignment: .leading, spacing: 8) {
-            Text("github \(store.account ?? (store.hasLoaded ? "이메일 미설정" : "…"))").font(.headline)
-            Text(store.fromGitHub ? "GitHub + 미푸시 로컬 커밋" : "Local 프로젝트 · gh 로그인 필요")
-                .font(.caption).foregroundStyle(.secondary)
-            ContributionGrid(weeks: weeks, counts: store.counts, today: today, calendar: calendar)
-            Text("\(today.formatted(date: .long, time: .omitted)) · 기여한 날 \(share.percent)% (\(share.activeDays)/\(share.shownDays)일)")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            if store.fromGitHub {
-                Text("* fetch 안 한 저장소·squash merge·fork·시간대 차이로 오차가 있을 수 있음")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+            Picker("", selection: $tab) {
+                ForEach(Tab.allCases, id: \.self) { Label(String(describing: $0).capitalized, systemImage: $0.symbol) }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            switch tab {
+            case .git: gitTab
+            case .codex: CodexTab(store: codex)
+            case .claude: Text("M5 예정").font(.caption).foregroundStyle(.secondary)
+            case .grok: Text("미지원").font(.caption).foregroundStyle(.secondary)
             }
             Rectangle().fill(Color.primary).frame(height: 1)
             HStack {
@@ -49,8 +60,11 @@ struct PopupView: View {
                     NSApp.activate() // menu bar apps have no Dock icon; bring the settings window to the front
                     openSettings()
                 }
-                Button("새로고침") { Task { await store.refresh() } }
-                    .disabled(store.isRefreshing)
+                Button("새로고침") {
+                    Task { await store.refresh() }
+                    Task { await codex.refresh() }
+                }
+                .disabled(store.isRefreshing && codex.isRefreshing)
                 Spacer()
                 Button("종료") { NSApplication.shared.terminate(nil) }
                     .font(.caption)
@@ -59,6 +73,28 @@ struct PopupView: View {
         }
         .padding()
         .frame(width: 280, alignment: .leading)
+    }
+
+    /// The M2/M3 Git view, unchanged.
+    @ViewBuilder
+    private var gitTab: some View {
+        let today = Date()
+        let calendar = Calendar.current
+        let weeks = ContributionCalendar.weeks(endingAt: today, count: ContributionStore.weekCount, calendar: calendar)
+        let share = ContributionCalendar.activeShare(of: weeks, counts: store.counts, today: today, calendar: calendar)
+
+        Text("github \(store.account ?? (store.hasLoaded ? "이메일 미설정" : "…"))").font(.headline)
+        Text(store.fromGitHub ? "GitHub + 미푸시 로컬 커밋" : "Local 프로젝트 · gh 로그인 필요")
+            .font(.caption).foregroundStyle(.secondary)
+        ContributionGrid(weeks: weeks, counts: store.counts, today: today, calendar: calendar)
+        Text("\(today.formatted(date: .long, time: .omitted)) · 기여한 날 \(share.percent)% (\(share.activeDays)/\(share.shownDays)일)")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        if store.fromGitHub {
+            Text("* fetch 안 한 저장소·squash merge·fork·시간대 차이로 오차가 있을 수 있음")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
     }
 }
 

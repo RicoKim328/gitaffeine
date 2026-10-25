@@ -37,4 +37,12 @@ public enum ContributionCalendar {
         let active = shown.filter { counts[dayKey($0, calendar: calendar), default: 0] > 0 }
         return Share(activeDays: active.count, shownDays: shown.count)
     }
+
+    /// The smallest count of each of the grid's three active levels: thirds of the active days.
+    /// For counts with no natural scale, such as AI tokens; git commits use fixed levels.
+    public static func levelThresholds(for counts: [String: Int]) -> [Int] {
+        let active = counts.values.filter { $0 > 0 }.sorted()
+        guard !active.isEmpty else { return [1, 2, 3] }
+        return [1, active[active.count / 3], active[active.count * 2 / 3]]
+    }
 }

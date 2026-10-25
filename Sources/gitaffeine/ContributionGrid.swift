@@ -8,6 +8,8 @@ struct ContributionGrid: View {
     let counts: [String: Int]
     let today: Date
     var calendar = Calendar.current
+    /// The smallest count of each active level; commits use fixed levels.
+    var thresholds = [1, 3, 6]
 
     var body: some View {
         HStack(spacing: 3) {
@@ -27,16 +29,16 @@ struct ContributionGrid: View {
         let count = counts[key, default: 0]
         RoundedRectangle(cornerRadius: 2)
             .fill(calendar.compare(day, to: today, toGranularity: .day) == .orderedDescending
-                  ? Color.clear : Self.color(for: count))
+                  ? Color.clear : color(for: count))
             .frame(width: 12, height: 12)
             .help("\(key): \(count)")
     }
 
-    private static func color(for count: Int) -> Color {
+    private func color(for count: Int) -> Color {
         switch count {
-        case 0: Color.secondary.opacity(0.2)
-        case 1...2: Color.green.opacity(0.4)
-        case 3...5: Color.green.opacity(0.7)
+        case ..<thresholds[0]: Color.secondary.opacity(0.2)
+        case ..<thresholds[1]: Color.green.opacity(0.4)
+        case ..<thresholds[2]: Color.green.opacity(0.7)
         default: Color.green
         }
     }
