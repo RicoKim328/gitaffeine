@@ -34,7 +34,8 @@ struct TestGit {
 
     func commit(email: String, date: Date) throws {
         let stamp = "@\(Int(date.timeIntervalSince1970)) +0000"
-        try self("-c", "user.name=Test", "-c", "user.email=\(email)", "commit", "-q", "--allow-empty", "-m", "c",
-                 env: ["GIT_AUTHOR_DATE": stamp])
+        // A unique message keeps two empty commits made in the same second from sharing a hash.
+        try self("-c", "user.name=Test", "-c", "user.email=\(email)", "commit", "-q", "--allow-empty",
+                 "-m", UUID().uuidString, env: ["GIT_AUTHOR_DATE": stamp])
     }
 }

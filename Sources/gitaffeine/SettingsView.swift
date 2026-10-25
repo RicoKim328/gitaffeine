@@ -1,13 +1,14 @@
 import SwiftUI
 
 struct SettingsView: View {
-    let email: String?
+    let account: String?
+    let fromGitHub: Bool
 
     var body: some View {
         TabView {
             Form {
-                LabeledContent("작성자 이메일", value: email ?? "미설정")
-                Text("전역 git user.email에서 읽습니다.")
+                LabeledContent("계정", value: account ?? "미설정")
+                Text(fromGitHub ? "gh CLI에 로그인한 GitHub 계정입니다." : "gh 로그인 전이라 전역 git user.email을 씁니다.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

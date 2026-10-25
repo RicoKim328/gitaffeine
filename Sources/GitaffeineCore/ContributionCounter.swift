@@ -14,8 +14,20 @@ public enum ContributionCounter {
     }
 
     /// Daily counts summed over `repos`. A repo git can't read (broken, permission) is skipped.
-    public static func dailyCounts(repos: [URL], emails: Set<String>, sinceDays: Int) -> [String: Int] {
-        let commits = repos.flatMap { (try? GitLog.commits(in: $0, sinceDays: sinceDays)) ?? [] }
-        return dailyCounts(commits, emails: emails)
+    /// With `onlyNotOnGitHub`, commits GitHub already counts (on a GitHub remote's default branch or gh-pages)
+    /// are left out, so the result can be added to the GitHub calendar without counting them twice.
+    /// They are left out of every repo, including other clones whose remote isn't GitHub.
+    public static func dailyCounts(repos: [URL], emails: Set<String>, sinceDays: Int,
+                                   onlyNotOnGitHub: Bool = false) -> [String: Int] {
+        var commits: [Commit] = []
+        var onGitHub: Set<String> = []
+        for repo in repos {
+            commits += (try? GitLog.commits(in: repo, sinceDays: sinceDays)) ?? []
+            if onlyNotOnGitHub, let refs = try? GitLog.githubCountedRefs(in: repo), !refs.isEmpty {
+                let counted = (try? GitLog.commits(in: repo, sinceDays: sinceDays, reachableFrom: refs)) ?? []
+                onGitHub.formUnion(counted.map(\.hash))
+            }
+        }
+        return dailyCounts(commits.filter { !onGitHub.contains($0.hash) }, emails: emails)
     }
 }
