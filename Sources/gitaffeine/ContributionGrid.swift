@@ -1,9 +1,13 @@
+import GitaffeineCore
 import SwiftUI
 
-/// Nine weeks of daily commit counts: one column per week, oldest on the left, ending with the current week.
+/// Daily counts drawn as a grid: one column per week, oldest on the left.
+/// Takes any per-day counts, so other daily data (e.g. AI usage) can reuse it.
 struct ContributionGrid: View {
+    let weeks: [[Date]]
     let counts: [String: Int]
-    var today = Date()
+    let today: Date
+    var calendar = Calendar.current
 
     var body: some View {
         HStack(spacing: 3) {
@@ -17,23 +21,15 @@ struct ContributionGrid: View {
         }
     }
 
-    private var weeks: [[Date]] {
-        let calendar = Calendar.current
-        let thisWeek = calendar.dateInterval(of: .weekOfYear, for: today)!.start
-        let first = calendar.date(byAdding: .weekOfYear, value: -8, to: thisWeek)!
-        return (0..<9).map { week in
-            (0..<7).map { calendar.date(byAdding: .day, value: week * 7 + $0, to: first)! }
-        }
-    }
-
     @ViewBuilder
     private func cell(for day: Date) -> some View {
-        let key = Self.dayKey.string(from: day)
+        let key = ContributionCalendar.dayKey(day, calendar: calendar)
         let count = counts[key, default: 0]
         RoundedRectangle(cornerRadius: 2)
-            .fill(day > today ? Color.clear : Self.color(for: count))
+            .fill(calendar.compare(day, to: today, toGranularity: .day) == .orderedDescending
+                  ? Color.clear : Self.color(for: count))
             .frame(width: 12, height: 12)
-            .help("\(key): \(count) commits")
+            .help("\(key): \(count)")
     }
 
     private static func color(for count: Int) -> Color {
@@ -44,12 +40,4 @@ struct ContributionGrid: View {
         default: Color.green
         }
     }
-
-    /// Same day format as `GitLog` ("yyyy-MM-dd" in this Mac's time zone).
-    private static let dayKey: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.dateFormat = "yyyy-MM-dd"
-        return formatter
-    }()
 }
