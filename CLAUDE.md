@@ -9,7 +9,7 @@ Swift 6, SwiftUI `MenuBarExtra`, Swift Charts, macOS 14+, SwiftPM만 사용(Xcod
 ## 명령
 - 빌드: `swift build`
 - 테스트: `swift test`
-- 앱 묶기: `scripts/bundle.sh` → `build/gitaffeine.app` (실행: `open build/gitaffeine.app`)
+- 앱 묶기: `scripts/bundle.sh` → `build/gitaffeine.app` + GitHub Release용 `build/gitaffeine-<버전>.zip` (실행: `open build/gitaffeine.app`)
 
 ## 구조
 - `Sources/gitaffeine/`: 앱과 UI. 로직이 생기면(M1부터) `Sources/GitaffeineCore/`로 분리하고 거기서 테스트한다.
