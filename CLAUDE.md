@@ -1,5 +1,8 @@
 # gitaffeine
 
+- 계획과 결정은 `docs/PLAN.md`가 기준이다. 새 결정은 거기에 날짜와 함께 기록한다.
+- Rico의 승인은 rico/cursor를 통해 받는다.
+
 macOS 메뉴 막대 앱(CodexBar 대체). 팝업에 최근 git 기여 잔디와 AI 도구(Codex, Claude) 사용량 그래프를 보여준다.
 Swift 6, SwiftUI `MenuBarExtra`, Swift Charts, macOS 14+, SwiftPM만 사용(Xcode 프로젝트 없음).
 
