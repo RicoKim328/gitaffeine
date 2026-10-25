@@ -11,12 +11,15 @@ public enum GrokUsage {
         public let window: UsageWindow
         /// `prepaidBalance.val` as sent; the unit is unconfirmed.
         public let prepaidBalance: Int?
+        /// From `_x.ai/auth/check_subscription`; memory only, shown in the title, never stored or logged.
+        public let email: String?
     }
 
     /// ACP extension methods go on the wire with a leading "_"; "x.ai/billing" is "Method not found".
     static let requests = Data("""
     {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":1,"clientCapabilities":{}}}
     {"jsonrpc":"2.0","id":2,"method":"_x.ai/billing","params":{}}
+    {"jsonrpc":"2.0","id":3,"method":"_x.ai/auth/check_subscription","params":{}}
 
     """.utf8)
 
@@ -25,7 +28,7 @@ public enum GrokUsage {
         guard let grok = grokPath() else { throw CocoaError(.fileNoSuchFile) }
         // --no-leader: without it grok may start a shared leader process that keeps running after we quit.
         return try parse(CodexUsage.run(grok, ["agent", "--no-leader", "stdio"], requests: requests,
-                                        untilReplies: [2], timeout: 30))
+                                        untilReplies: [2, 3], required: [2], timeout: 30))
     }
 
     /// Where the grok installer and Homebrew put it; apps started from Finder don't get the shell's PATH.
@@ -48,7 +51,11 @@ public enum GrokUsage {
             }
             return date
         }
-        for line in output.split(separator: UInt8(ascii: "\n")) {
+        let lines = output.split(separator: UInt8(ascii: "\n"))
+        // Only meta.email is decoded; a failed subscription reply just leaves the email out.
+        let email = lines.lazy.compactMap { try? decoder.decode(SubscriptionReply.self, from: $0) }
+            .first { $0.id == 3 && $0.method == nil }?.result?.meta.email.flatMap { $0.isEmpty ? nil : $0 }
+        for line in lines {
             guard let reply = try? decoder.decode(Reply.self, from: line), reply.id == 2, reply.method == nil else { continue }
             if let error = reply.error { throw CodexUsage.ReplyError(message: error.message) }
             guard let billing = reply.result else { break }
@@ -57,7 +64,7 @@ public enum GrokUsage {
                          window: UsageWindow(usedPercent: Int((config.creditUsagePercent ?? 0).rounded()),
                                              minutes: Int(period.end.timeIntervalSince(period.start) / 60),
                                              resetsAt: period.end),
-                         prepaidBalance: config.prepaidBalance.map { $0.val ?? 0 })
+                         prepaidBalance: config.prepaidBalance.map { $0.val ?? 0 }, email: email)
         }
         throw CodexUsage.ReplyError(message: "no billing reply")
     }
@@ -68,6 +75,14 @@ public enum GrokUsage {
         let error: ErrorBody?
         let result: Billing?
         struct ErrorBody: Decodable { let message: String }
+    }
+
+    private struct SubscriptionReply: Decodable {
+        let id: Int?
+        let method: String?
+        let result: Result?
+        struct Result: Decodable { let meta: Meta }
+        struct Meta: Decodable { let email: String? }
     }
 
     /// Protobuf JSON leaves out zero values, so the numbers are optional.

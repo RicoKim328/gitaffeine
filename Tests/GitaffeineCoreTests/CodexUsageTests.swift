@@ -66,6 +66,14 @@ private let fixture = """
     #expect(String(decoding: output, as: UTF8.self) == "{\"id\":4,\"result\":{}}\n")
 }
 
+@Test func runKeepsRequiredRepliesWhenAnOptionalOneNeverComes() throws {
+    // Like grok answering billing (2) but never the subscription check (3).
+    let script = #"echo '{"id":2,"result":{}}'; sleep 10"#
+    let output = try CodexUsage.run(URL(fileURLWithPath: "/bin/sh"), ["-c", script], untilReplies: [2, 3],
+                                    required: [2], timeout: 0.5)
+    #expect(String(decoding: output, as: UTF8.self) == "{\"id\":2,\"result\":{}}\n")
+}
+
 @Test func runStopsWhenNoReplyComes() {
     #expect(throws: (any Error).self) {
         try CodexUsage.run(URL(fileURLWithPath: "/bin/sleep"), ["10"], untilReplies: [4], timeout: 0.5)
@@ -128,6 +136,44 @@ private func window(_ used: Int, minutes: Int = 300, resetsAt: Date = .now) -> U
     #expect(window(5, minutes: 10080, resetsAt: now.addingTimeInterval(10080 * 60)).projectedRemainingPercent(at: now) == nil)
     // 50% used after one day of seven runs out well before the reset.
     #expect(window(50, minutes: 10080, resetsAt: now.addingTimeInterval(6 * 24 * 3600)).projectedRemainingPercent(at: now) == 0)
+}
+
+@Test func codexIsLookedForInNvmThenFnmThenTheNpmPrefix() throws {
+    let home = try TempDir()
+    let fm = FileManager.default
+    for folder in [".nvm/versions/node/v9.0.0/bin", ".nvm/versions/node/v20.11.0/bin",
+                   "Library/Application Support/fnm/node-versions/v22.1.0/installation/bin"] {
+        try fm.createDirectory(at: home.url.appending(path: folder), withIntermediateDirectories: true)
+    }
+    try "registry=https://example.com\nprefix = ~/npm-global\n".write(to: home.url.appending(path: ".npmrc"),
+                                                                      atomically: true, encoding: .utf8)
+    let h = home.url.path
+    // The highest node version comes first, compared as numbers (20 > 9).
+    #expect(CodexUsage.managerPaths(home: h) == [
+        "\(h)/.nvm/versions/node/v20.11.0/bin/codex", "\(h)/.nvm/versions/node/v9.0.0/bin/codex",
+        "\(h)/Library/Application Support/fnm/node-versions/v22.1.0/installation/bin/codex",
+        "\(h)/npm-global/bin/codex",
+    ])
+}
+
+@Test func quotedNpmPrefixWithHomeVariableIsExpanded() throws {
+    let home = try TempDir()
+    try "prefix=\"${HOME}/npm-global\"\n".write(to: home.url.appending(path: ".npmrc"), atomically: true, encoding: .utf8)
+    #expect(CodexUsage.managerPaths(home: home.url.path) == ["\(home.url.path)/npm-global/bin/codex"])
+}
+
+@Test func nodeFromAVersionManagerIsOnPathForAnNpmPrefixCodex() throws {
+    // codex under a custom npm prefix, node only under fnm: `#!/usr/bin/env node` must still find node.
+    let home = try TempDir()
+    let fnmBin = home.url.appending(path: ".local/share/fnm/node-versions/v22.1.0/installation/bin").path
+    try FileManager.default.createDirectory(atPath: fnmBin, withIntermediateDirectories: true)
+    let environment = CodexUsage.environment(for: URL(fileURLWithPath: "\(home.url.path)/npm-global/bin/codex"),
+                                             inheriting: ["PATH": "/usr/bin:/bin", "HOME": home.url.path])
+    #expect(environment["PATH"]?.split(separator: ":").contains(Substring(fnmBin)) == true)
+}
+
+@Test func noVersionManagersMeansNoExtraPaths() throws {
+    #expect(CodexUsage.managerPaths(home: try TempDir().url.path).isEmpty)
 }
 
 @Test func codexGetsAPathWithItsFolderAndHomebrewForNode() {

@@ -12,8 +12,8 @@
 | M3 | GitHub 기여 달력(gh) + GitHub가 아직 세지 않은 로컬 커밋 | 완료 `5440fd4` (푸시됨) |
 | M4 | 팝업 상단 탭 UI(Git·Codex·Claude·Grok) + Codex 사용량(`codex app-server`): 계정, 5h·주간 한도, AI 잔디·그래프 | 완료 `21e87c3` (푸시됨) |
 | M5 | Claude 사용량(로컬 jsonl + rate_limits), "실험적" 라벨, $ 추정(Codex 포함), 폭 340 통일·높이 맞춤, 20주 잔디 | 완료 `63b6259` (푸시됨) |
-| M5.5 | Grok 사용량 조사 + Grok 탭 최소 버전(`grok agent`의 `_x.ai/billing`): tier, 주간 한도, 선불 잔액 (2026-10-25 Rico: 번호 M5.5, M6는 그대로) | 완료 (푸시 승인 대기) |
-| M6 | 앱 아이콘, Developer ID 서명, 공증, nvm·fnm·사용자 npm prefix에 설치된 codex 찾기(2026-10-25 codex 리뷰 P2, M4는 고정 경로 3곳만) | 대기 |
+| M5.5 | Grok 사용량 조사 + Grok 탭 최소 버전(`grok agent`의 `_x.ai/billing`): tier, 주간 한도, 선불 잔액 (2026-10-25 Rico: 번호 M5.5, M6는 그대로) | 완료 `6587ca6` (푸시됨) |
+| M6 | 앱 아이콘, ~~Developer ID 서명, 공증~~(2026-10-25 Rico: 멤버십 없음, GitHub 배포), nvm·fnm·사용자 npm prefix에 설치된 codex 찾기(2026-10-25 codex 리뷰 P2, M4는 고정 경로 3곳만), Grok 제목 이메일, Claude 한도 안내 구분 | 구현 완료, 커밋 승인 대기 |
 
 ## 제품
 - macOS 메뉴 막대 앱, CodexBar 대체. 최소 macOS 14. 처음엔 Rico 개인 사용, 나중에 배포.
@@ -97,10 +97,11 @@
 - 2026-10-25 Grok 조사 결과(M5.5): 보려는 것은 SuperGrok 구독 계정 사용량(Rico).
   - `grok agent --no-leader stdio`(ACP)의 확장 메서드 `_x.ai/billing`(앞에 `_` 필요, 문서 없음 ❓)이 계정 단위 `creditUsagePercent`(0–100), 현재 주간 기간(start·end), `prepaidBalance.val`, `subscription_tier`를 줌. 응답 약 1초. 일별 기록·토큰·$는 없음.
   - 로컬 세션 + `grok usage`(✅, 이 Mac 단위)는 이 Mac에 세션이 없어 제외. External OTEL(⚠️ alpha, 설정 변경·수신 서버 필요)·xAI 관리 API(관리 키 저장 필요, 규칙 위반)도 제외.
-  - `_x.ai/auth/check_subscription`은 이메일·team_id 등 신원 정보가 있어 쓰지 않음.
+  - ~~`_x.ai/auth/check_subscription`은 이메일·team_id 등 신원 정보가 있어 쓰지 않음.~~ → 2026-10-25 Rico 승인: 이메일은 화면 표시에만 사용(아래 Grok 탭 제목). team_id 등 다른 필드는 쓰지 않음.
 - 2026-10-25 Grok 탭(M5.5, Rico): 최소 버전. 계정 줄(tier) + 주간 한도 칸, "비공식" 표시, 잔디·그래프 없음. Codex처럼 팝업 열 때·새로고침 때 grok을 띄워 조회 후 종료.
   - 선불 잔액은 항상 원래 숫자 + "(단위 미확인)"으로 표시(2026-10-25 값 0이라 단위 확정 못 함).
   - grok agent 같은 실행(네트워크·프로세스)은 매번 실행 전에 rico/cursor로 물어봄(2026-10-25 Rico).
+  - 2026-10-25 제목(Rico 승인, M6 커밋에 포함): 같은 grok 호출에 `_x.ai/auth/check_subscription`(id 3)을 더해 `result.meta.email`만 읽음. 제목 "tier (이메일)", 이메일 없으면 tier만("SuperGrok"), tier도 없으면 "Grok", 로딩 중 "Grok (…)". check_subscription만 실패하면 한도는 그대로, 제목에서 이메일만 뺌. 이메일은 메모리에서 화면 표시에만 사용(저장·로깅·전송 안 함).
 - 2026-10-25 설정 창: 나중에 다시 만들어서 git, claude 등 서비스를 고를 수 있게 할 예정.
   - 구현 시점과 세부 설계는 미정이고 논의 후 결정.
   - M4에서 설정 모듈은 건드리지 않음.
@@ -120,11 +121,19 @@
 - 2026-10-25 잔디 16주 → 20주(Rico 결정 b): 297pt로 폭 340을 채움. 기여한 날 %와 AI 잔디도 20주(140일) 기준. 위 M2 "16주" 결정을 대체.
 - 2026-10-25 짧은 탭에서 팝업 상하에 빈 공간이 남는 문제(Rico 제보): MenuBarExtra 창은 커지기만 하고 줄지 않음(`.fixedSize`만으로는 해결 안 됨, Rico 확인). Rico 결정 2번: 뷰에서 `NSView.window`로 창을 얻어 내용 높이로 줄임(위쪽 끝 고정, 아래만). 한계: SwiftUI가 만든 창을 직접 바꾸므로 macOS가 MenuBarExtra 창 처리를 바꾸면 다시 고쳐야 할 수 있음.
 
+### M6 (2026-10-25 Rico 결정)
+- 서명·공증: 유료 Apple Developer 멤버십 없음 → Developer ID 서명·공증 안 함. ad-hoc 서명 유지, GitHub로 배포.
+- 배포(2026-10-25 Rico, 추천안 전부): zip(`ditto -c -k --keepParent`, bundle.sh가 `build/gitaffeine-<버전>.zip` 생성) · Rico가 GitHub 웹에서 Release 생성·zip 첨부(에이전트는 `gh release create` 안 함) · README에 "그래도 열기"와 `xattr -dr com.apple.quarantine` 두 방법 안내 · 자동 업데이트 없음(새 Release로 교체) · Apple Silicon(arm64)만 · Info.plist 버전을 손으로 올리고 같은 값의 git 태그(v0.1.0).
+- codex 찾기: 정해진 위치 방식. 고정 3곳 → nvm(`~/.nvm/versions/node/*/bin`) → fnm(`~/.local/share/fnm`, `~/Library/Application Support/fnm`의 `node-versions/*/installation/bin`) → `~/.npmrc`의 `prefix=`(`~/`, `${HOME}` 펼침)`/bin`. 버전이 여러 개면 높은 버전 먼저(숫자 비교). 로그인 셸 실행 방식은 안 씀(느리고 멈출 위험).
+- 아이콘: 진한 갈색(커피) 둥근 사각형 위 흰 알약(PillIcon 모양 확대). `scripts/make-icon.swift`로 그려 `iconutil`로 `AppIcon.icns`, bundle.sh가 매번 생성(바이너리 파일을 저장소에 두지 않음).
+- Claude 한도 안내: 래퍼 파일 없음(미설치)과 파일은 있는데 현재 rate_limits 없음을 다른 문구로 표시(2026-10-25 Rico 승인, 상태줄 래퍼 설치 후 정상 표시 확인).
+
 ### 마일스톤별 검증 기준 (남은 것)
 - M4: 앱 수치 = app-server 원본 JSON 합계 · `codex` 없음·미로그인 시 안내 · 금액 자리에 "추정" 라벨.
   - 2026-10-25 실행 확인(Rico 승인): 일별 버킷 합계 755,120,134 = `lifetimeTokens`. 팝업 Codex 탭이 원본 JSON과 일치(사용 5% — 당시 표시 기준, 초기화 약 5일 19시간, 주간 약 12,223,872 토큰, 토요일 칸만 색, 5h 구역 없음).
 - M5: 고정 fixture로 파서·중복 제거 테스트 · fixture 삭제 후에도 캐시 일별 값 유지 · 데이터 없는 날 빗금 · 래퍼 설치 후 기존 statusline 출력이 바뀌지 않음.
-- M6: `spctl -a -vv build/gitaffeine.app` 통과 · 다른 계정에서 실행 확인.
+- M6: ~~`spctl -a -vv build/gitaffeine.app` 통과~~ (Developer ID 없음, 2026-10-25) → 2026-10-25 Rico 결정: `codesign --verify --deep --strict build/gitaffeine.app` 통과(bundle.sh가 실행) · Finder에서 아이콘 표시 · Release zip을 다른 macOS 계정이나 다른 Mac에서 README 절차대로 열어 Git/Codex/Claude/Grok 탭 표시(Rico 확인) · `spctl`은 "rejected"가 정상(기록만).
+  - 2026-10-25 확인: Rico가 bundle.sh 실행 → `build/gitaffeine-0.1.0.zip` 생성, `codesign --verify --deep --strict` 통과, `spctl` rejected(예상대로), Finder 갈색 알약 아이콘·팝업 정상(Rico). 다른 계정/Mac 확인은 Release 업로드 후 Rico.
 
 ## 하네스
 - 순서: 구현(파서·집계는 fixture 테스트 먼저) → `swift build` + `swift test` → `ponytail:ponytail-review` → karpathy 점검 → `/codex:review`(M3·M5는 `/codex:adversarial-review` 추가) → rico/cursor로 보고 → Rico 승인 후 커밋 → 별도 승인 후 푸시.
@@ -135,7 +144,7 @@
 
 ## 다음 작업 / 열린 질문
 - 2026-10-25 M5는 Rico 결정으로 리뷰 생략(ponytail 1회만 실행, 지적 1건 주석 수정으로 반영). 커밋 `63b6259`, 푸시 완료.
-- 다음 작업: M5.5 푸시 승인 → M6. (2026-10-25 ponytail·codex 리뷰 통과, Rico 팝업 확인 후 커밋) M5.5 결과·결정은 위 "Grok 조사 결과", "Grok 탭" 항목.
+- 다음 작업: M6 커밋 승인 대기(2026-10-25). 이후 Rico가 v0.1.0 태그·Release. (2026-10-25 ponytail·codex 리뷰 통과, Rico 팝업 확인 후 커밋) M5.5 결과·결정은 위 "Grok 조사 결과", "Grok 탭" 항목.
 
 ### M5.5 시작 맥락 (2026-10-25, 조사 시작 시점 기록. 결과는 위 결정 항목)
 - 목표: 조사만. xAI/Grok 사용량 데이터 소스를 찾아 선택지(출처, 얻는 값: 일별 토큰·비용·한도 %, 계정 단위인지 이 Mac 단위인지, 공식/실험/비공식 ✅⚠️❓, 필요한 권한)를 표로 정리해 Rico에게 묻는다. 구현은 Rico 결정 후, 마일스톤 배치도 그때 제안.

@@ -97,7 +97,9 @@ struct PopupView: View {
         return UsageTab(title: usage?.email.map { "Claude (\($0))" } ?? (claude.hasLoaded ? "Claude" : "Claude (…)"),
                         note: "실험적 방식 · 이 Mac의 Claude Code 기록", error: claude.error,
                         windows: usage?.windows ?? [],
-                        noWindowsHint: "5h·주간 한도: scripts/claude-statusline.sh를 statusLine에 직접 설치하면 표시 (방법은 스크립트 첫 줄 주석)",
+                        noWindowsHint: usage?.hasStatusLine == true
+                            ? "5h·주간 한도: 상태줄 입력에 현재 rate_limits 없음 (요금제에 없거나 초기화 후 아직 갱신 전, Claude Code에서 메시지를 보내면 갱신)"
+                            : "5h·주간 한도: scripts/claude-statusline.sh를 statusLine에 직접 설치하면 표시 (방법은 스크립트 첫 줄 주석)",
                         dailyTokens: usage?.dailyTokens, dailyCost: usage?.dailyCost,
                         costNote: usage?.unpricedModels.isEmpty == false ? "API 정가 기준 추정 · 단가 없는 모델 제외"
                                                                          : "API 정가 기준 추정",
@@ -106,7 +108,8 @@ struct PopupView: View {
 
     private var grokTab: some View {
         let usage = grok.usage
-        return UsageTab(title: usage?.tier.map { "Grok (\($0))" } ?? (grok.hasLoaded ? "Grok" : "Grok (…)"),
+        let title = usage?.tier.map { tier in usage?.email.map { "\(tier) (\($0))" } ?? tier }
+        return UsageTab(title: title ?? (grok.hasLoaded ? "Grok" : "Grok (…)"),
                         note: "비공식 방식(grok agent) · 계정 단위"
                             + (usage.map { "\n선불 잔액 \($0.prepaidBalance.map(String.init) ?? "—") (단위 미확인)" } ?? ""),
                         error: grok.error, windows: usage.map { [$0.window] } ?? [])

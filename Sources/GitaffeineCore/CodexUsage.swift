@@ -45,28 +45,52 @@ public enum CodexUsage {
     }
 
     /// Apps started from Finder don't get the shell's PATH, so look where the installers put codex.
-    // shortcut: misses codex installed via nvm, fnm or a custom npm prefix; resolve those before distribution (M6).
     static func codexPath() -> URL? {
         let home = FileManager.default.homeDirectoryForCurrentUser.path
-        return ["\(home)/.local/bin/codex", "/opt/homebrew/bin/codex", "/usr/local/bin/codex"]
+        return (["\(home)/.local/bin/codex", "/opt/homebrew/bin/codex", "/usr/local/bin/codex"] + managerPaths(home: home))
             .first { FileManager.default.isExecutableFile(atPath: $0) }
             .map { URL(fileURLWithPath: $0) }
     }
 
-    /// `environment` with codex's folder and the Homebrew folders put in front of PATH,
+    /// Where `npm install -g` puts codex under nvm, then fnm (highest node version first), then `prefix=` in ~/.npmrc.
+    static func managerPaths(home: String) -> [String] {
+        let versions = [("\(home)/.nvm/versions/node", "bin"),
+                        ("\(home)/.local/share/fnm/node-versions", "installation/bin"),
+                        ("\(home)/Library/Application Support/fnm/node-versions", "installation/bin")]
+            .flatMap { root, bin in
+                ((try? FileManager.default.contentsOfDirectory(atPath: root)) ?? [])
+                    .sorted { $0.compare($1, options: .numeric) == .orderedDescending }
+                    .map { "\(root)/\($0)/\(bin)/codex" }
+            }
+        let npmrc = (try? String(contentsOfFile: "\(home)/.npmrc", encoding: .utf8)) ?? ""
+        for line in npmrc.split(separator: "\n") {
+            let parts = line.split(separator: "=", maxSplits: 1).map { $0.trimmingCharacters(in: .whitespaces) }
+            guard parts.count == 2, parts[0] == "prefix" else { continue }
+            var prefix = parts[1].trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
+                .replacingOccurrences(of: "${HOME}", with: home)
+            if prefix.hasPrefix("~/") { prefix = home + prefix.dropFirst() }
+            return versions + ["\(prefix)/bin/codex"]
+        }
+        return versions
+    }
+
+    /// `environment` with codex's folder, the Homebrew folders and the nvm/fnm node folders put in front of PATH,
     /// so an npm-installed codex (a `#!/usr/bin/env node` script) finds node when the app is opened from Finder.
     static func environment(for executable: URL, inheriting environment: [String: String]) -> [String: String] {
         var environment = environment
-        let folders = [executable.deletingLastPathComponent().path, "/opt/homebrew/bin", "/usr/local/bin",
-                       environment["PATH"] ?? "/usr/bin:/bin:/usr/sbin:/sbin"]
+        let nodeFolders = managerPaths(home: environment["HOME"] ?? NSHomeDirectory())
+            .map { URL(fileURLWithPath: $0).deletingLastPathComponent().path }
+        let folders = [executable.deletingLastPathComponent().path, "/opt/homebrew/bin", "/usr/local/bin"] + nodeFolders
+            + [environment["PATH"] ?? "/usr/bin:/bin:/usr/sbin:/sbin"]
         environment["PATH"] = folders.joined(separator: ":")
         return environment
     }
 
     /// Writes `requests` and returns stdout once replies with all `ids` have arrived. Also used for `grok agent`.
+    /// On timeout it still returns stdout if the `required` replies came; otherwise it throws.
     /// app-server quits without answering when stdin closes, so stdin stays open until then.
     static func run(_ executable: URL, _ arguments: [String], requests: Data = requests, untilReplies ids: Set<Int>,
-                    timeout: TimeInterval) throws -> Data {
+                    required: Set<Int>? = nil, timeout: TimeInterval) throws -> Data {
         let process = Process()
         process.executableURL = executable
         process.arguments = arguments
@@ -94,6 +118,7 @@ public enum CodexUsage {
         }
         guard done.wait(timeout: .now() + timeout) == .success else {
             stdout.fileHandleForReading.readabilityHandler = nil
+            if let required, output.hasReplies(required) { return output.data }
             throw Command.TimedOut()
         }
         return output.data
@@ -108,12 +133,14 @@ public enum CodexUsage {
 
         /// True once every id in `ids` has a reply line.
         func append(_ chunk: Data, hasReplies ids: Set<Int>) -> Bool {
-            lock.withLock {
-                buffer.append(chunk)
-                let seen = buffer.split(separator: UInt8(ascii: "\n"))
-                    .compactMap { try? JSONDecoder().decode(Reply.self, from: $0).replyID }
-                return ids.isSubset(of: seen)
-            }
+            lock.withLock { buffer.append(chunk) }
+            return hasReplies(ids)
+        }
+
+        func hasReplies(_ ids: Set<Int>) -> Bool {
+            let seen = data.split(separator: UInt8(ascii: "\n"))
+                .compactMap { try? JSONDecoder().decode(Reply.self, from: $0).replyID }
+            return ids.isSubset(of: seen)
         }
     }
 

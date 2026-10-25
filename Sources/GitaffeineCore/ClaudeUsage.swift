@@ -23,6 +23,8 @@ public enum ClaudeUsage {
         public let email: String?
         /// From the status line wrapper; empty when it isn't installed or the windows have reset since.
         public let windows: [UsageWindow]
+        /// The wrapper's file exists, so empty `windows` means Claude Code sent no current rate_limits.
+        public let hasStatusLine: Bool
         public let daily: Daily
 
         public var dailyTokens: [String: Int] { daily.mapValues { $0.values.reduce(0) { $0 + $1.total } } }
@@ -44,6 +46,7 @@ public enum ClaudeUsage {
         let statusLine = try? Data(contentsOf: support.appending(path: "claude-status.json"))
         return Usage(email: (try? Data(contentsOf: home.appending(path: ".claude.json"))).flatMap(email(claudeJSON:)),
                      windows: statusLine.map { windows(statusLine: $0, now: Date()) } ?? [],
+                     hasStatusLine: statusLine != nil,
                      daily: try loadDaily(projects: home.appending(path: ".claude/projects"),
                                           cache: support.appending(path: "claude-daily.json"), calendar: .current))
     }

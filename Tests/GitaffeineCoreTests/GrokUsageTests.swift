@@ -10,6 +10,8 @@ private let fixture = """
 {"type":"USAGE_PERIOD_TYPE_WEEKLY","start":"2026-10-25T04:43:45.477+00:00","end":"2026-11-01T04:43:45.477+00:00"},\
 "prepaidBalance":{"val":0},"isUnifiedBillingUser":true,"billingPeriodStart":"2026-10-25T04:43:45.477+00:00",\
 "billingPeriodEnd":"2026-11-01T04:43:45.477+00:00"},"subscription_tier":"SuperGrok"}}
+{"jsonrpc":"2.0","id":3,"result":{"authenticated":true,"meta":{"email":"user@example.com","auth_mode":"x",\
+"team_id":"fake-team","team_name":null,"subscription_tier":"SuperGrok"}}}
 
 """
 
@@ -20,6 +22,15 @@ private let fixture = """
     #expect(usage.window.minutes == 7 * 24 * 60)
     #expect(abs(usage.window.resetsAt.timeIntervalSince1970 - 1_793_508_225.477) < 0.001)
     #expect(usage.prepaidBalance == 0)
+    #expect(usage.email == "user@example.com")
+}
+
+@Test func failedSubscriptionReplyOnlyDropsEmail() throws {
+    let json = fixture.replacingOccurrences(of: #"{"jsonrpc":"2.0","id":3,"result""#,
+                                            with: #"{"jsonrpc":"2.0","id":3,"error":{"code":-32601,"message":"Method not found"},"x""#)
+    let usage = try GrokUsage.parse(Data(json.utf8))
+    #expect(usage.email == nil)
+    #expect(usage.window.usedPercent == 6)
 }
 
 @Test func omittedZeroFieldsMeanZero() throws {
@@ -45,7 +56,7 @@ private let fixture = """
 @Test func grokRequestsAreOneJSONMessagePerLine() throws {
     let lines = String(decoding: GrokUsage.requests, as: UTF8.self).split(separator: "\n")
     let messages = try lines.map { try JSONSerialization.jsonObject(with: Data($0.utf8)) as! [String: Any] }
-    #expect(messages.map { $0["method"] as! String } == ["initialize", "_x.ai/billing"])
+    #expect(messages.map { $0["method"] as! String } == ["initialize", "_x.ai/billing", "_x.ai/auth/check_subscription"])
 }
 
 @Test func timesWithoutFractionParse() throws {
