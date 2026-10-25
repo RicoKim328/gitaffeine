@@ -11,7 +11,7 @@
 | M2 | 팝업 구성 변경, 16주 잔디, 기여한 날 %, 설정 창 | 완료 `d1f9cf4` (푸시됨) |
 | M3 | GitHub 기여 달력(gh) + GitHub가 아직 세지 않은 로컬 커밋 | 완료 `5440fd4` (푸시됨) |
 | M4 | 팝업 상단 탭 UI(Git·Codex·Claude·Grok) + Codex 사용량(`codex app-server`): 계정, 5h·주간 한도, AI 잔디·그래프 | 완료 (푸시됨) |
-| M5 | Claude 사용량(로컬 jsonl + rate_limits), "실험적" 라벨, $ 추정(Codex 포함) | 대기 |
+| M5 | Claude 사용량(로컬 jsonl + rate_limits), "실험적" 라벨, $ 추정(Codex 포함), 폭 340 통일·높이 맞춤, 20주 잔디 | 완료 (커밋 승인 대기) |
 | (M5 이후 별도) | Grok 사용량 조사 | 대기 |
 | M6 | 앱 아이콘, Developer ID 서명, 공증, nvm·fnm·사용자 npm prefix에 설치된 codex 찾기(2026-10-25 codex 리뷰 P2, M4는 고정 경로 3곳만) | 대기 |
 
@@ -30,7 +30,7 @@
 
 ### 계정·GitHub (M3)
 - 2026-10-25 이메일은 하나만 쓰고 목록 UI는 없음. 출처는 gh 로그인 계정. gh를 쓸 수 없으면 전역 `git config --global user.email`.
-- 2026-10-25 표시: 공개 프로필 이메일이 있으면 `github <이메일>`, 없으면 `github @<로그인>`. 로컬 커밋은 공개 이메일과 전역 git 이메일 둘 다로 거름.
+- 2026-10-25 표시: 공개 프로필 이메일이 있으면 `github <이메일>`, 없으면 `github @<로그인>`. → 2026-10-25 Rico: AI 탭과 같게 괄호 형식 `github (<이메일>)` / `github (@<로그인>)` / `github (이메일 미설정)` / 집계 전 `github (…)`. 로컬 커밋은 공개 이메일과 전역 git 이메일 둘 다로 거름.
 - 2026-10-25 GitHub 기여 = `gh api graphql`의 viewer `contributionCalendar` 전체(커밋+PR+이슈+리뷰). gh가 토큰을 관리하고 앱은 토큰을 읽거나 저장하지 않음. gh는 `/opt/homebrew/bin/gh`, `/usr/local/bin/gh` 순서로 찾음. private 기여에는 `read:user` 스코프 필요.
 - 2026-10-25 gh 호출에만 60초 시간 제한. 넘으면 로컬 집계로 대체하고 새로고침 버튼도 다시 활성화.
 - 2026-10-25 합계 = GitHub 달력 + GitHub가 아직 세지 않은 로컬 커밋.
@@ -46,7 +46,7 @@
 
 ### 팝업·설정 (M2)
 - 2026-10-25 팝업 구성(위→아래):
-  - `github <계정>`
+  - `github (<계정>)`
   - 라벨(작은 회색 글자)
   - 잔디 16주(112일, 팝업 너비 280pt를 채움)
   - "<오늘 날짜(시스템 언어 긴 형식)> · 기여한 날 N% (활동일/표시일일)"(작은 회색 글자)
@@ -98,6 +98,21 @@
   - 구현 시점과 세부 설계는 미정이고 논의 후 결정.
   - M4에서 설정 모듈은 건드리지 않음.
 
+### Claude 사용량·금액·창 크기 (M5, 2026-10-25 Rico 결정)
+- 2026-10-25 Claude 일별 토큰: `~/.claude/projects/**/*.jsonl`(서브에이전트 포함)을 매번 전부 파싱(9.4MB 0.07초, 증분 offset 없음).
+  - 한 응답이 content block마다 같은 (message.id, requestId)로 여러 줄 기록됨(913줄 중 고유 395). 키별로 합계가 가장 큰 줄(마지막 줄 = 최종 output)만 셈. 여러 파일에 있어도 한 번.
+  - `<synthetic>` 모델 제외. 날짜는 timestamp(UTC)를 이 Mac 시간대로.
+- 2026-10-25 캐시 `~/Library/Application Support/gitaffeine/claude-daily.json`(날짜 × 모델 × 토큰 5종). 병합은 날짜별로 합계가 더 큰 쪽 유지(Rico 승인). 한계: 같은 날 일부 로그만 지워진 뒤 새 사용이 생기면 과소 집계 → 코드 shortcut 주석.
+- 2026-10-25 계정 표시: `~/.claude.json`의 `oauthAccount.emailAddress`만 읽음(Rico 승인). 토큰은 읽지 않음.
+- 2026-10-25 5h·주간 %: `scripts/claude-statusline.sh` 래퍼가 statusLine 입력을 `claude-status.json`에 저장하고 같은 입력으로 기존 명령을 실행(출력·종료 코드 그대로, 검증함). 설치는 Rico가 직접. 필드는 `rate_limits.five_hour|seven_day.{used_percentage, resets_at}`(Claude Code 2.1.310 내장 문서로 확인). 초기화 시각이 지난 창은 숨김.
+- 2026-10-25 Claude $: 모델별 API 정가(claude-api 스킬 표, 2026-10-06 기준). cache write 5m 1.25× · 1h 2× 입력가, cache read는 모델별 값. 단가 없는 모델은 빼고 "단가 없는 모델 제외" 표시. fast mode는 표준가로 계산(기록에 없음).
+- 2026-10-25 Codex $: 혼합가 = 0.916×캐시입력가 + 0.080×입력가 + 0.004×출력가(이 Mac `~/.codex/sessions` 비율, 1회 측정), 모델은 gpt-6-sol(Rico 결정), developers.openai.com/api/docs/pricing 2026-10-25 기준 입력 $2.00 · 캐시 입력 $0.20 · 출력 $10.00(272K 이하) → $0.3832/MTok. "API 정가 기준 추정 · gpt-6-sol 혼합 단가" 표시. Claude는 모델별 정가 유지(Rico 결정).
+- 2026-10-25 데이터 시작일(캐시·로그의 가장 이른 날) 이전 날은 잔디에서 빗금. Codex는 서버에 전체 기록이 있어 빗금 없음.
+- ~~2026-10-25 창 크기: 탭마다 폭 다르게~~ → 2026-10-25 Rico 번복: 폭이 바뀌면 창이 아이콘 기준으로 다시 가운데 정렬돼 탭 바가 움직이고 빈 영역이 보임. 폭은 모든 탭 340으로 통일(Rico가 만족한 Codex 폭), 높이는 탭마다 내용에 자동. 탭 바는 창 폭을 채움. 창 위치 보정 코드는 넣지 않음. 긴 글자는 잘리지 않고 줄바꿈.
+
+- 2026-10-25 잔디 16주 → 20주(Rico 결정 b): 297pt로 폭 340을 채움. 기여한 날 %와 AI 잔디도 20주(140일) 기준. 위 M2 "16주" 결정을 대체.
+- 2026-10-25 짧은 탭에서 팝업 상하에 빈 공간이 남는 문제(Rico 제보): MenuBarExtra 창은 커지기만 하고 줄지 않음(`.fixedSize`만으로는 해결 안 됨, Rico 확인). Rico 결정 2번: 뷰에서 `NSView.window`로 창을 얻어 내용 높이로 줄임(위쪽 끝 고정, 아래만). 한계: SwiftUI가 만든 창을 직접 바꾸므로 macOS가 MenuBarExtra 창 처리를 바꾸면 다시 고쳐야 할 수 있음.
+
 ### 마일스톤별 검증 기준 (남은 것)
 - M4: 앱 수치 = app-server 원본 JSON 합계 · `codex` 없음·미로그인 시 안내 · 금액 자리에 "추정" 라벨.
   - 2026-10-25 실행 확인(Rico 승인): 일별 버킷 합계 755,120,134 = `lifetimeTokens`. 팝업 Codex 탭이 원본 JSON과 일치(사용 5% — 당시 표시 기준, 초기화 약 5일 19시간, 주간 약 12,223,872 토큰, 토요일 칸만 색, 5h 구역 없음).
@@ -112,7 +127,7 @@
 - 커밋·푸시·네트워크·설치·의존성 추가·오래 도는 프로세스는 rico/cursor를 통한 Rico 승인 후에만.
 
 ## 다음 작업 / 열린 질문
-- 다음 작업: M4 리뷰(ponytail → karpathy → `/codex:review`) → rico/cursor로 보고 → 커밋 승인 → 푸시 승인.
+- 다음 작업: M5 커밋 승인 → 푸시 승인 → Grok 사용량 조사(별도 마일스톤). 2026-10-25 Rico: M5는 리뷰 생략(ponytail 1회만 실행, 지적 1건 주석 수정으로 반영).
 - ~~M4 계획 질문(토글·기간 위치, 아이콘, Grok)~~ → 2026-10-25 위 "AI 탭" 결정으로 답함.
 - ~~Codex 사용량을 잔디로 보일지, 그래프로 보일지~~ → 2026-10-25 잔디와 그래프 둘 다로 결정.
 - 마일스톤마다 끝날 때: 이 문서의 상태 갱신 → 커밋 → 보고 → (Rico 결정 시) 세션 clear.

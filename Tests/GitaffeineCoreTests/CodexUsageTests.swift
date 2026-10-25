@@ -17,7 +17,7 @@ private let fixture = """
 @Test func parsesAccountLimitsAndDailyTokens() throws {
     let usage = try CodexUsage.parse(Data(fixture.utf8))
     #expect(usage.email == "rico@example.com")
-    #expect(usage.windows == [CodexUsage.Window(usedPercent: 5, minutes: 10080,
+    #expect(usage.windows == [UsageWindow(usedPercent: 5, minutes: 10080,
                                                 resetsAt: Date(timeIntervalSince1970: 1793406650))])
     #expect(usage.dailyTokens == ["2026-10-19": 1200, "2026-10-25": 300])
 }
@@ -78,8 +78,8 @@ private let seoul: Calendar = {
     return calendar
 }()
 
-private func window(_ used: Int, minutes: Int = 300, resetsAt: Date = .now) -> CodexUsage.Window {
-    CodexUsage.Window(usedPercent: used, minutes: minutes, resetsAt: resetsAt)
+private func window(_ used: Int, minutes: Int = 300, resetsAt: Date = .now) -> UsageWindow {
+    UsageWindow(usedPercent: used, minutes: minutes, resetsAt: resetsAt)
 }
 
 @Test func cellsShowTheRemainingPercentFiveEachWithAPartialLastCell() {
@@ -107,7 +107,7 @@ private func window(_ used: Int, minutes: Int = 300, resetsAt: Date = .now) -> C
     let resets = seoul.date(from: DateComponents(year: 2026, month: 10, day: 30, hour: 9))!
     let today = seoul.date(from: DateComponents(year: 2026, month: 10, day: 25, hour: 15))!
     let daily = ["2026-10-22": 1000, "2026-10-23": 200, "2026-10-25": 30, "2026-10-26": 4]
-    #expect(window(5, minutes: 10080, resetsAt: resets).tokens(in: daily, today: today, calendar: seoul) == 230)
+    #expect(window(5, minutes: 10080, resetsAt: resets).total(in: daily, today: today, calendar: seoul) == 230)
 }
 
 @Test func weekCellsFillOnePerElapsedDayAndProjectTheRemainingPercent() {
@@ -136,4 +136,11 @@ private func window(_ used: Int, minutes: Int = 300, resetsAt: Date = .now) -> C
                                              inheriting: ["PATH": "/usr/bin:/bin", "HOME": "/Users/rico"])
     #expect(environment["PATH"] == "/opt/tools/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin")
     #expect(environment["HOME"] == "/Users/rico")
+}
+
+@Test func dailyCostUsesTheBlendedGpt6SolPrice() throws {
+    let usage = try CodexUsage.parse(Data(fixture.utf8))
+    // 0.916 x $0.20 cached + 0.080 x $2 input + 0.004 x $10 output = $0.3832 per million tokens.
+    let cost = usage.dailyCost.mapValues { ($0 * 1e10).rounded() / 1e10 }
+    #expect(cost == ["2026-10-19": 0.00045984, "2026-10-25": 0.00011496])
 }
