@@ -5,7 +5,9 @@ let package = Package(
     name: "gitaffeine",
     platforms: [.macOS(.v14)],
     targets: [
-        .executableTarget(name: "gitaffeine"),
+        .target(name: "GitaffeineCore"),
+        .executableTarget(name: "gitaffeine", dependencies: ["GitaffeineCore"]),
         .testTarget(name: "gitaffeineTests", dependencies: ["gitaffeine"]),
+        .testTarget(name: "GitaffeineCoreTests", dependencies: ["GitaffeineCore"]),
     ]
 )
