@@ -6,13 +6,15 @@ struct GitaffeineApp: App {
     @State private var contributions = ContributionStore()
     @State private var codex = CodexStore()
     @State private var claude = ClaudeStore()
+    @State private var grok = GrokStore()
 
     var body: some Scene {
         MenuBarExtra {
-            PopupView(store: contributions, codex: codex, claude: claude)
+            PopupView(store: contributions, codex: codex, claude: claude, grok: grok)
                 .task { await contributions.refresh() }
                 .task { await codex.refresh() }
                 .task { await claude.refresh() }
+                .task { await grok.refresh() }
         } label: {
             Image(nsImage: PillIcon.image)
         }
@@ -28,6 +30,7 @@ struct PopupView: View {
     let store: ContributionStore
     let codex: CodexStore
     let claude: ClaudeStore
+    let grok: GrokStore
     @Environment(\.openSettings) private var openSettings
     @State private var tab = Tab.git
 
@@ -55,7 +58,7 @@ struct PopupView: View {
             case .git: gitTab
             case .codex: codexTab
             case .claude: claudeTab
-            case .grok: Text("미지원").font(.caption).foregroundStyle(.secondary)
+            case .grok: grokTab
             }
             Rectangle().fill(Color.primary).frame(height: 1)
             HStack {
@@ -67,8 +70,9 @@ struct PopupView: View {
                     Task { await store.refresh() }
                     Task { await codex.refresh() }
                     Task { await claude.refresh() }
+                    Task { await grok.refresh() }
                 }
-                .disabled(store.isRefreshing && codex.isRefreshing && claude.isRefreshing)
+                .disabled(store.isRefreshing && codex.isRefreshing && claude.isRefreshing && grok.isRefreshing)
                 Spacer()
                 Button("종료") { NSApplication.shared.terminate(nil) }
                     .font(.caption)
@@ -98,6 +102,14 @@ struct PopupView: View {
                         costNote: usage?.unpricedModels.isEmpty == false ? "API 정가 기준 추정 · 단가 없는 모델 제외"
                                                                          : "API 정가 기준 추정",
                         firstDay: usage?.daily.keys.min())
+    }
+
+    private var grokTab: some View {
+        let usage = grok.usage
+        return UsageTab(title: usage?.tier.map { "Grok (\($0))" } ?? (grok.hasLoaded ? "Grok" : "Grok (…)"),
+                        note: "비공식 방식(grok agent) · 계정 단위"
+                            + (usage.map { "\n선불 잔액 \($0.prepaidBalance.map(String.init) ?? "—") (단위 미확인)" } ?? ""),
+                        error: grok.error, windows: usage.map { [$0.window] } ?? [])
     }
 
     /// The M2/M3 Git view, unchanged.

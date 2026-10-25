@@ -63,9 +63,9 @@ public enum CodexUsage {
         return environment
     }
 
-    /// Writes `requests` and returns stdout once replies with all `ids` have arrived.
+    /// Writes `requests` and returns stdout once replies with all `ids` have arrived. Also used for `grok agent`.
     /// app-server quits without answering when stdin closes, so stdin stays open until then.
-    static func run(_ executable: URL, _ arguments: [String], untilReplies ids: Set<Int>,
+    static func run(_ executable: URL, _ arguments: [String], requests: Data = requests, untilReplies ids: Set<Int>,
                     timeout: TimeInterval) throws -> Data {
         let process = Process()
         process.executableURL = executable

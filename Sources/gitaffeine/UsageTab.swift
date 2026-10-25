@@ -2,7 +2,8 @@ import Charts
 import GitaffeineCore
 import SwiftUI
 
-/// An AI tab (Codex, Claude): account, the 5-hour and weekly limits, then 20 weeks of daily tokens and a chart.
+/// An AI tab (Codex, Claude, Grok): account, the 5-hour and weekly limits, then 20 weeks of daily tokens and a chart
+/// (without daily tokens, only the limits).
 struct UsageTab: View {
     let title: String
     /// Small grey line under the title, e.g. "실험적 방식".
@@ -11,6 +12,7 @@ struct UsageTab: View {
     var windows: [UsageWindow] = []
     /// Shown instead of the limits when there are none, e.g. how to install the status line wrapper.
     var noWindowsHint: String?
+    /// nil shows only the limits, e.g. Grok, which gives no daily history.
     var dailyTokens: [String: Int]?
     /// Estimated $ per day; nil disables the $ toggle.
     var dailyCost: [String: Double]?
@@ -27,7 +29,7 @@ struct UsageTab: View {
         if let note { small(note) }
         if let error {
             small(error)
-        } else if let dailyTokens {
+        } else {
             let today = Date()
             if let fiveHour = windows.first(where: { $0.minutes < 24 * 60 }) {
                 separator
@@ -44,40 +46,42 @@ struct UsageTab: View {
                     }
                 }
                 small(Self.pace(week, at: today) + "\n초기화까지 \(Self.duration(week.resetsAt.timeIntervalSince(today)))"
-                      + " · 약 \(week.total(in: dailyTokens, today: today, calendar: .current).formatted()) 토큰"
-                      + " · " + amount(dailyCost.map { week.total(in: $0, today: today, calendar: .current) }))
+                      + (dailyTokens.map { " · 약 \(week.total(in: $0, today: today, calendar: .current).formatted()) 토큰"
+                          + " · " + amount(dailyCost.map { week.total(in: $0, today: today, calendar: .current) }) } ?? ""))
             }
-            if windows.isEmpty, let noWindowsHint {
+            if windows.isEmpty, dailyTokens != nil, let noWindowsHint {
                 separator
                 small(noWindowsHint)
             }
-            separator
-            ContributionGrid(weeks: ContributionCalendar.weeks(endingAt: today, count: ContributionStore.weekCount,
-                                                               calendar: .current),
-                             counts: dailyTokens, today: today,
-                             thresholds: ContributionCalendar.levelThresholds(for: dailyTokens), firstDay: firstDay)
-            if showsCost, let dailyCost {
-                DailyChart(daily: dailyCost, days: days, today: today, label: "$")
-            } else {
-                DailyChart(daily: dailyTokens.mapValues(Double.init), days: days, today: today, label: "토큰")
-            }
-            HStack {
-                Picker("기간", selection: $days) {
-                    ForEach([7, 30, 60], id: \.self) { Text("\($0)일") }
+            if let dailyTokens {
+                separator
+                ContributionGrid(weeks: ContributionCalendar.weeks(endingAt: today, count: ContributionStore.weekCount,
+                                                                   calendar: .current),
+                                 counts: dailyTokens, today: today,
+                                 thresholds: ContributionCalendar.levelThresholds(for: dailyTokens), firstDay: firstDay)
+                if showsCost, let dailyCost {
+                    DailyChart(daily: dailyCost, days: days, today: today, label: "$")
+                } else {
+                    DailyChart(daily: dailyTokens.mapValues(Double.init), days: days, today: today, label: "토큰")
                 }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                Picker("단위", selection: $showsCost) {
-                    Text("토큰").tag(false)
-                    Text("$").tag(true)
+                HStack {
+                    Picker("기간", selection: $days) {
+                        ForEach([7, 30, 60], id: \.self) { Text("\($0)일") }
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    Picker("단위", selection: $showsCost) {
+                        Text("토큰").tag(false)
+                        Text("$").tag(true)
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .disabled(dailyCost == nil)
+                    .frame(width: 80)
                 }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .disabled(dailyCost == nil)
-                .frame(width: 80)
-            }
-            if showsCost, dailyCost != nil {
-                small("$는 \(costNote)")
+                if showsCost, dailyCost != nil {
+                    small("$는 \(costNote)")
+                }
             }
         }
     }
@@ -215,6 +219,33 @@ final class ClaudeStore {
         case .failure:
             usage = nil
             error = "사용량 캐시를 저장하지 못함 · ~/Library/Application Support/gitaffeine 권한 확인"
+        }
+        hasLoaded = true
+    }
+}
+
+/// SuperGrok usage, fetched each time the popup opens or on 새로고침. Memory only: there is no history to keep.
+@MainActor @Observable
+final class GrokStore {
+    private(set) var usage: GrokUsage.Usage?
+    private(set) var error: String?
+    private(set) var isRefreshing = false
+    private(set) var hasLoaded = false
+
+    func refresh() async {
+        guard !isRefreshing else { return }
+        isRefreshing = true
+        defer { isRefreshing = false }
+        let result = await Task.detached { Result { try GrokUsage.fetch() } }.value
+        switch result {
+        case .success(let fetched):
+            usage = fetched
+            error = nil
+        case .failure(let failure):
+            usage = nil
+            error = (failure as? CocoaError)?.code == .fileNoSuchFile
+                ? "grok CLI를 찾을 수 없음 · 설치 후 새로고침"
+                : "grok 로그인 필요 또는 연결 오류 · 터미널에서 grok login 후 새로고침"
         }
         hasLoaded = true
     }
