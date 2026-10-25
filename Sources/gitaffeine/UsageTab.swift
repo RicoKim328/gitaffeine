@@ -38,13 +38,7 @@ struct UsageTab: View {
             }
             if let week = windows.first(where: { $0.minutes >= 24 * 60 }) {
                 separator
-                let fills = week.dayFills(at: today)
-                UsageCells(fills: fills, tips: fills.indices.map { Self.dayRange(week, day: $0) })
-                HStack(spacing: 2) {
-                    ForEach(1...fills.count, id: \.self) {
-                        Text("\($0)").font(.caption2).foregroundStyle(.secondary).frame(maxWidth: .infinity)
-                    }
-                }
+                UsageCells(fills: week.cellFills(count: 20))
                 small(Self.pace(week, at: today) + "\n초기화까지 \(Self.duration(week.resetsAt.timeIntervalSince(today)))"
                       + (dailyTokens.map { " · 약 \(week.total(in: $0, today: today, calendar: .current).formatted()) 토큰"
                           + " · " + amount(dailyCost.map { week.total(in: $0, today: today, calendar: .current) }) } ?? ""))
@@ -108,14 +102,6 @@ struct UsageTab: View {
         return text
     }
 
-    /// "10-24 09:30 ~ 10-25 09:30" for the `day`-th 24 hours of the window.
-    private static func dayRange(_ week: UsageWindow, day: Int) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MM-dd HH:mm"
-        let from = week.start.addingTimeInterval(Double(day) * 24 * 3600)
-        return "\(formatter.string(from: from)) ~ \(formatter.string(from: from.addingTimeInterval(24 * 3600)))"
-    }
-
     private static func duration(_ seconds: TimeInterval) -> String {
         let formatter = DateComponentsFormatter()
         formatter.allowedUnits = [.day, .hour, .minute]
@@ -128,8 +114,6 @@ struct UsageTab: View {
 /// One row of cells filled from the left; a partly used cell is drawn lighter.
 struct UsageCells: View {
     let fills: [Double]
-    /// Tooltip per cell, if any.
-    var tips: [String] = []
 
     var body: some View {
         HStack(spacing: 2) {
@@ -138,7 +122,6 @@ struct UsageCells: View {
                     .fill(Color.secondary.opacity(0.2))
                     .overlay(RoundedRectangle(cornerRadius: 2).fill(Color.green.opacity(fills[index])))
                     .frame(height: 12)
-                    .help(tips.indices.contains(index) ? tips[index] : "")
             }
         }
     }

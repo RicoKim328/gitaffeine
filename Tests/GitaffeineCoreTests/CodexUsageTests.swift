@@ -118,16 +118,11 @@ private func window(_ used: Int, minutes: Int = 300, resetsAt: Date = .now) -> U
     #expect(window(5, minutes: 10080, resetsAt: resets).total(in: daily, today: today, calendar: seoul) == 230)
 }
 
-@Test func weekCellsFillOnePerElapsedDayAndProjectTheRemainingPercent() {
+@Test func weekElapsedShareAndProjectedRemainingPercent() {
     // 1 day 5 hours into a week, 5% used: 17% of the time gone.
     let now = Date(timeIntervalSince1970: 1_800_000_000)
     let week = window(5, minutes: 10080, resetsAt: now.addingTimeInterval((5 * 24 + 19) * 3600))
     #expect(Int((week.elapsedFraction(at: now) * 100).rounded()) == 17)
-    let fills = week.dayFills(at: now)
-    #expect(fills.count == 7)
-    #expect(fills[0] == 1)
-    #expect(abs(fills[1] - 5.0 / 24) < 1e-9)
-    #expect(fills.dropFirst(2).allSatisfy { $0 == 0 })
     #expect(week.projectedRemainingPercent(at: now) == 71)
 }
 

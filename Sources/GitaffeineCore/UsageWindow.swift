@@ -23,12 +23,6 @@ public struct UsageWindow: Equatable, Sendable {
         min(max(now.timeIntervalSince(start) / (Double(minutes) * 60), 0), 1)
     }
 
-    /// One cell per 24 hours from the window's start: passed ones full, the current one partly filled.
-    public func dayFills(at now: Date) -> [Double] {
-        let elapsedDays = elapsedFraction(at: now) * Double(minutes) / (24 * 60)
-        return (0..<minutes / (24 * 60)).map { min(max(elapsedDays - Double($0), 0), 1) }
-    }
-
     /// Percent left at the reset if use keeps its average pace so far; nil before any time has passed.
     public func projectedRemainingPercent(at now: Date) -> Int? {
         let elapsed = elapsedFraction(at: now)
