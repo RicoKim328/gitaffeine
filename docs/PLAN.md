@@ -125,6 +125,7 @@
 ### M6 (2026-10-25 Rico 결정)
 - 서명·공증: 유료 Apple Developer 멤버십 없음 → Developer ID 서명·공증 안 함. ad-hoc 서명 유지, GitHub로 배포.
 - 배포(2026-10-25 Rico, 추천안 전부): zip(`ditto -c -k --keepParent`, bundle.sh가 `build/gitaffeine-<버전>.zip` 생성) · Rico가 GitHub 웹에서 Release 생성·zip 첨부(에이전트는 `gh release create` 안 함) · README에 "그래도 열기"와 `xattr -dr com.apple.quarantine` 두 방법 안내 · 자동 업데이트 없음(새 Release로 교체) · Apple Silicon(arm64)만 · Info.plist 버전을 손으로 올리고 같은 값의 git 태그(v0.1.0).
+- 2026-10-25 dmg 추가(Rico, 추천안 전부): zip과 dmg 둘 다 제공. bundle.sh가 `hdiutil create -format UDZO`로 `build/gitaffeine-<버전>.dmg` 생성(앱 + `/Applications` 바로가기, 기본 Finder 창, 배경·아이콘 위치 꾸미기 없음, dmg 자체 서명 안 함). Gatekeeper 안내는 그대로(dmg에서 복사한 앱도 격리 표시가 이어짐). 검증: `hdiutil verify`, 읽기 전용 연결 후 앱·바로가기 존재와 `codesign --verify --deep --strict` 확인.
 - codex 찾기: 정해진 위치 방식. 고정 3곳 → nvm(`~/.nvm/versions/node/*/bin`) → fnm(`~/.local/share/fnm`, `~/Library/Application Support/fnm`의 `node-versions/*/installation/bin`) → `~/.npmrc`의 `prefix=`(`~/`, `${HOME}` 펼침)`/bin`. 버전이 여러 개면 높은 버전 먼저(숫자 비교). 로그인 셸 실행 방식은 안 씀(느리고 멈출 위험).
 - 아이콘: 진한 갈색(커피) 둥근 사각형 위 흰 알약(PillIcon 모양 확대). `scripts/make-icon.swift`로 그려 `iconutil`로 `AppIcon.icns`, bundle.sh가 매번 생성(바이너리 파일을 저장소에 두지 않음).
 - Claude 한도 안내: 래퍼 파일 없음(미설치)과 파일은 있는데 현재 rate_limits 없음을 다른 문구로 표시(2026-10-25 Rico 승인, 상태줄 래퍼 설치 후 정상 표시 확인).

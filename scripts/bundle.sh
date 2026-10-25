@@ -1,6 +1,6 @@
 #!/bin/sh
 # Build a release binary (Apple Silicon), wrap it in build/gitaffeine.app (ad-hoc signed)
-# and zip it as build/gitaffeine-<version>.zip for a GitHub Release.
+# and package it as build/gitaffeine-<version>.zip and .dmg (with an Applications link) for a GitHub Release.
 set -eu
 cd "$(dirname "$0")/.."
 
@@ -19,5 +19,13 @@ version=$(/usr/libexec/PlistBuddy -c "Print CFBundleShortVersionString" Resource
 zip="build/gitaffeine-$version.zip"
 rm -f "$zip"
 ditto -c -k --keepParent "$app" "$zip"
+dmg="build/gitaffeine-$version.dmg"
+rm -rf build/dmg
+mkdir build/dmg
+ditto "$app" build/dmg/gitaffeine.app
+ln -s /Applications build/dmg/Applications
+hdiutil create -quiet -volname gitaffeine -srcfolder build/dmg -ov -format UDZO "$dmg"
+rm -rf build/dmg
 echo "$app"
 echo "$zip"
+echo "$dmg"

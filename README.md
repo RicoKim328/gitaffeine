@@ -9,13 +9,15 @@ macOS 메뉴 막대 앱. 팝업에 최근 git 기여 잔디와 AI 도구(Codex, 
 
 ## 설치
 
-1. [Releases](https://github.com/RicoKim328/gitaffeine/releases)에서 `gitaffeine-<버전>.zip`을 받아 압축을 풀고 `gitaffeine.app`을 `/Applications`로 옮긴다.
+1. [Releases](https://github.com/RicoKim328/gitaffeine/releases)에서 둘 중 하나를 받는다.
+   - `gitaffeine-<버전>.dmg`: 열어서 `gitaffeine.app`을 옆의 Applications 폴더로 끌어다 놓는다.
+   - `gitaffeine-<버전>.zip`: 압축을 풀고 `gitaffeine.app`을 `/Applications`로 옮긴다.
 2. 처음 열 때 macOS가 막는다. Apple 공증을 받지 않은 앱(ad-hoc 서명)이기 때문이다. 둘 중 하나로 연다.
    - 앱을 한 번 열어 경고를 본 뒤, 시스템 설정 > 개인정보 보호 및 보안 아래쪽의 "그래도 열기"를 누른다.
    - 또는 터미널에서 `xattr -dr com.apple.quarantine /Applications/gitaffeine.app` 후 연다.
 3. Dock 아이콘 없이 메뉴 막대에 알약 아이콘이 생긴다.
 
-자동 업데이트는 없다. 새 버전은 Releases에서 새 zip을 받아 `/Applications/gitaffeine.app`을 바꾸고, 위 2번을 다시 한다.
+자동 업데이트는 없다. 새 버전은 Releases에서 새 dmg나 zip을 받아 `/Applications/gitaffeine.app`을 바꾸고, 위 2번을 다시 한다.
 
 ### Claude 5h·주간 한도
 
@@ -24,10 +26,10 @@ macOS 메뉴 막대 앱. 팝업에 최근 git 기여 잔디와 AI 도구(Codex, 
 ## 소스에서 빌드
 
 - 빌드: `swift build`, 테스트: `swift test`
-- 앱 묶기: `scripts/bundle.sh` → `build/gitaffeine.app`, `build/gitaffeine-<버전>.zip`
+- 앱 묶기: `scripts/bundle.sh` → `build/gitaffeine.app`, `build/gitaffeine-<버전>.zip`, `build/gitaffeine-<버전>.dmg`
 
 ## 릴리스 (관리자)
 
 1. `Resources/Info.plist`의 `CFBundleShortVersionString`을 올린다.
 2. `scripts/bundle.sh` 실행 후, 커밋에 같은 값의 태그를 단다(예: `v0.1.0`).
-3. GitHub 웹에서 그 태그로 Release를 만들고 `build/gitaffeine-<버전>.zip`을 첨부한다.
+3. GitHub 웹에서 그 태그로 Release를 만들고 `build/gitaffeine-<버전>.zip`과 `.dmg`를 첨부한다.
